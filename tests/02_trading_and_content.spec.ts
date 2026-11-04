@@ -6,7 +6,6 @@ test.describe('Trading Functionality, Content & Links, and Negative/Edge Cases',
     await page.goto('/', { waitUntil: 'domcontentloaded' });
   });
 
-  // ==========================================
   // 2. Trading Functionality
   
   test('Spot trading section renders and displays trading pairs', async ({ page }) => {
