@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mb.io - QA Test Execution Report</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      --passed-color: #22c55e;
+      --flaky-color: #eab308;
+      --failed-color: #ef4444;
+      --broken-color: #f59e0b;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      color: #38bdf8;
+    }
+    .meta {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .card h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .card .value {
+      font-size: 32px;
+      font-weight: bold;
+      margin: 0;
+    }
+    .card.total .value { color: #38bdf8; }
+    .card.passed .value { color: var(--passed-color); }
+    .card.flaky .value { color: var(--flaky-color); }
+    .card.failed .value { color: var(--failed-color); }
+    .card.broken .value { color: var(--broken-color); }
+    .card.skipped .value { color: var(--text-muted); }
+    
+    .table-container {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow-x: auto;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      min-width: 760px;
+    }
+    th, td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 14px;
+    }
+    th {
+      background-color: #0f172a;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover td {
+      background-color: rgba(56, 189, 248, 0.05);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-passed { background-color: rgba(34, 197, 94, 0.2); color: var(--passed-color); border: 1px solid rgba(34, 197, 94, 0.3); }
+    .status-flaky { background-color: rgba(234, 179, 8, 0.2); color: var(--flaky-color); border: 1px solid rgba(234, 179, 8, 0.3); }
+    .status-failed { background-color: rgba(239, 68, 68, 0.2); color: var(--failed-color); border: 1px solid rgba(239, 68, 68, 0.3); }
+    .status-broken { background-color: rgba(245, 158, 11, 0.2); color: var(--broken-color); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .status-skipped { background-color: rgba(148, 163, 184, 0.15); color: var(--text-muted); border: 1px solid rgba(148, 163, 184, 0.3); }
+    .section-title { margin: 0 0 14px; font-size: 19px; }
+    .run-meta { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 24px; }
+    .browser-name { display: block; font-weight: 600; }
+    .subtle, .file-path { color: var(--text-muted); font-size: 12px; }
+    .file-path { font-family: monospace; }
+    .test-title { font-weight: 600; }
+    .passed-text { color: var(--passed-color); }
+    .flaky-text { color: var(--flaky-color); }
+    .failed-text { color: var(--failed-color); }
+    .broken-text { color: var(--broken-color); }
+    
+    .error-text {
+      color: var(--failed-color);
+      font-family: monospace;
+      font-size: 12px;
+      margin-top: 4px;
+      max-width: 560px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    @media (max-width: 640px) {
+      body { padding: 14px; }
+      header { align-items: flex-start; flex-direction: column; gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>mb.io - Cross-Browser Test Report</h1>
+        <div class="meta">Desktop browser coverage: Google Chrome and Microsoft Edge</div>
+      </div>
+      <div class="meta">Report generated: 11/4/2026, 2:00:44 PM</div>
+    </header>
+
+    <div class="run-meta meta">
+      <span><strong>Run started:</strong> 11/4/2026, 1:59:49 PM</span>
+      <span><strong>Total run duration:</strong> 55.6s</span>
+      <span><strong>Included projects:</strong> Desktop-Chrome, Desktop-Edge</span>
+    </div>
+
+    <div class="summary-cards">
+      <div class="card total">
+        <h3>Total Tests</h3>
+        <p class="value">30</p>
+      </div>
+      <div class="card passed">
+        <h3>Passed</h3>
+        <p class="value">30</p>
+      </div>
+      <div class="card flaky">
+        <h3>Flaky</h3>
+        <p class="value">0</p>
+      </div>
+      <div class="card failed">
+        <h3>Failed</h3>
+        <p class="value">0</p>
+      </div>
+      <div class="card broken">
+        <h3>Broken</h3>
+        <p class="value">0</p>
+      </div>
+      <div class="card skipped">
+        <h3>Skipped</h3>
+        <p class="value">0</p>
+      </div>
+    </div>
+
+    <h2 class="section-title">Browser configuration and results</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Browser / Project</th>
+            <th>Channel</th>
+            <th>Engine</th>
+            <th>Mode</th>
+            <th>Viewport</th>
+            <th>Total</th>
+            <th>Passed</th>
+            <th>Flaky</th>
+            <th>Failed</th>
+            <th>Broken</th>
+            <th>Skipped</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+          <tr>
+            <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+            <td>chrome</td>
+            <td>Chromium</td>
+            <td>Desktop</td>
+            <td>1440 × 900</td>
+            <td>15</td>
+            <td class="passed-text">15</td>
+            <td class="flaky-text">0</td>
+            <td class="failed-text">0</td>
+            <td class="broken-text">0</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+            <td>msedge</td>
+            <td>Chromium</td>
+            <td>Desktop</td>
+            <td>1440 × 900</td>
+            <td>15</td>
+            <td class="passed-text">15</td>
+            <td class="flaky-text">0</td>
+            <td class="failed-text">0</td>
+            <td class="broken-text">0</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="section-title">Detailed test results</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Browser</th>
+            <th>Status</th>
+            <th>Test case / Error</th>
+            <th>File path</th>
+            <th>Duration</th>
+            <th>Retries</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">should load homepage and verify title and URL</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>8.20s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Top navigation renders with expected items visible</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>8.60s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Each navigation item links to the correct destination</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>8.28s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Navigation behaves correctly at standard desktop viewport sizes</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>8.32s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">should load homepage and verify title and URL</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>11.95s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Top navigation renders with expected items visible</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>21.36s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Each navigation item links to the correct destination</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>18.00s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Navigation behaves correctly at standard desktop viewport sizes</div>
+                
+              </td>
+              <td class="file-path">01_navigation.spec.ts</td>
+              <td>21.71s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Spot trading section renders and displays trading pairs</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>8.19s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Trading pairs are correctly grouped into categories</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>7.69s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Trading pair entries contain the expected data fields</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>7.70s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Marketing banners render in the expected page region</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>6.28s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">App Store and Google Play download links resolve correctly</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>8.26s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">About Us &gt; Why MultiBank page or section renders expected components</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>9.31s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Invalid route handling (404 / custom error or redirect)</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>5.32s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Viewport regression at a mobile breakpoint</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>9.45s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Spot trading section renders and displays trading pairs</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>13.92s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Trading pairs are correctly grouped into categories</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>14.47s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Trading pair entries contain the expected data fields</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>10.91s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Marketing banners render in the expected page region</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>11.19s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">App Store and Google Play download links resolve correctly</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>5.98s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">About Us &gt; Why MultiBank page or section renders expected components</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>12.08s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Invalid route handling (404 / custom error or redirect)</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>5.60s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Viewport regression at a mobile breakpoint</div>
+                
+              </td>
+              <td class="file-path">02_trading_and_content.spec.ts</td>
+              <td>6.47s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Parameterized test for route: /</div>
+                
+              </td>
+              <td class="file-path">03_bonus_features.spec.ts</td>
+              <td>7.79s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Validate relevant API or network responses during navigation</div>
+                
+              </td>
+              <td class="file-path">03_bonus_features.spec.ts</td>
+              <td>5.90s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Google Chrome</span><span class="subtle">Desktop-Chrome</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Visual regression check via screenshot comparison</div>
+                
+              </td>
+              <td class="file-path">03_bonus_features.spec.ts</td>
+              <td>6.46s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Parameterized test for route: /</div>
+                
+              </td>
+              <td class="file-path">03_bonus_features.spec.ts</td>
+              <td>5.66s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Validate relevant API or network responses during navigation</div>
+                
+              </td>
+              <td class="file-path">03_bonus_features.spec.ts</td>
+              <td>5.85s</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td><span class="browser-name">Microsoft Edge</span><span class="subtle">Desktop-Edge</span></td>
+              <td><span class="badge status-passed">Passed</span></td>
+              <td>
+                <div class="test-title">Visual regression check via screenshot comparison</div>
+                
+              </td>
+              <td class="file-path">03_bonus_features.spec.ts</td>
+              <td>6.56s</td>
+              <td>0</td>
+            </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules/
+test-results/
+playwright-report/
+allure-results/
+playwright/.cache/
+coverage/
+test-results.json
+.env
+.env.*
+!.env.example
